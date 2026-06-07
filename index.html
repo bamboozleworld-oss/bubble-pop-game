@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🫧 Bubble Pop Adventure!</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a2e;
+    --sky1: #1a1a5e;
+    --sky2: #0d2b5e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+
+  body {
+    background: radial-gradient(ellipse at top, #1a1a6e 0%, #0a0a2e 60%, #000 100%);
+    min-height: 100vh;
+    font-family: 'Fredoka One', cursive;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  #stars {
+    position: fixed;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .star {
+    position: absolute;
+    border-radius: 50%;
+    background: white;
+    animation: twinkle var(--d) ease-in-out infinite alternate;
+  }
+
+  @keyframes twinkle {
+    from { opacity: 0.2; transform: scale(1); }
+    to   { opacity: 1;   transform: scale(1.4); }
+  }
+
+  /* ---- HUD ---- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px;
+    background: rgba(0,0,0,.35);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    border-bottom: 2px solid rgba(255,255,255,.1);
+  }
+
+  .hud-box {
+    text-align: center;
+  }
+
+  .hud-label {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px; font-weight: 800;
+    color: rgba(255,255,255,.6);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .hud-value {
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  #score-val  { color: #ffd700; text-shadow: 0 0 20px #ffd70088; }
+  #level-val  { color: #7effb2; text-shadow: 0 0 20px #7effb288; }
+  #lives-val  { color: #ff6b6b; text-shadow: 0 0 20px #ff6b6b88; }
+  #timer-val  { color: #80d8ff; text-shadow: 0 0 20px #80d8ff88; }
+
+  /* ---- PROGRESS BAR ---- */
+  #progress-wrap {
+    position: fixed; top: 78px; left: 20px; right: 20px;
+    height: 10px;
+    background: rgba(255,255,255,.12);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 100;
+  }
+
+  #progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #7effb2, #00e5ff);
+    border-radius: 10px;
+    transition: width .3s ease;
+    box-shadow: 0 0 12px #00e5ffaa;
+  }
+
+  /* ---- GAME AREA ---- */
+  #game {
+    position: fixed;
+    top: 95px; left: 0; right: 0; bottom: 0;
+  }
+
+  /* ---- BUBBLES ---- */
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    animation: floatUp var(--speed) linear forwards;
+    transition: transform .1s;
+    will-change: transform, opacity;
+  }
+
+  .bubble:active { transform: scale(.85); }
+
+  @keyframes floatUp {
+    from { transform: translateX(var(--sway)) translateY(0); opacity: 1; }
+    50%  { transform: translateX(calc(var(--sway) * -1.5)) translateY(-40%); opacity: 1; }
+    to   { transform: translateX(var(--sway)) translateY(-110vh); opacity: .6; }
+  }
+
+  /* ---- POP BURST ---- */
+  .pop-burst {
+    position: absolute;
+    pointer-events: none;
+    animation: burst .5s ease-out forwards;
+    border-radius: 50%;
+    z-index: 200;
+  }
+
+  @keyframes burst {
+    0%   { transform: scale(0); opacity: 1; }
+    60%  { transform: scale(2.5); opacity: .8; }
+    100% { transform: scale(4); opacity: 0; }
+  }
+
+  .score-fly {
+    position: absolute;
+    font-family: 'Fredoka One', cursive;
+    font-size: 22px;
+    color: #ffd700;
+    text-shadow: 0 2px 8px #000;
+    pointer-events: none;
+    animation: flyUp .8s ease-out forwards;
+    z-index: 300;
+  }
+
+  @keyframes flyUp {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-80px) scale(1.4); }
+  }
+
+  /* ---- BOMB SHAKE ---- */
+  @keyframes shakeScreen {
+    0%,100% { transform: translate(0,0) rotate(0); }
+    20% { transform: translate(-8px,4px) rotate(-1deg); }
+    40% { transform: translate(8px,-4px) rotate(1deg); }
+    60% { transform: translate(-6px,6px) rotate(-.5deg); }
+    80% { transform: translate(6px,-6px) rotate(.5deg); }
+  }
+
+  .shake { animation: shakeScreen .4s ease-out; }
+
+  /* ---- OVERLAYS ---- */
+  .overlay {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 500;
+    background: rgba(0,0,0,.8);
+    backdrop-filter: blur(10px);
+  }
+
+  .overlay h1 {
+    font-size: clamp(36px,8vw,72px);
+    line-height: 1.1;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .overlay p {
+    font-family: 'Nunito', sans-serif;
+    font-size: clamp(14px,3vw,20px);
+    color: rgba(255,255,255,.75);
+    text-align: center;
+    max-width: 420px;
+    margin-bottom: 10px;
+  }
+
+  .big-btn {
+    margin-top: 30px;
+    padding: 18px 52px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 26px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ff6b9d, #ff8c42);
+    color: white;
+    box-shadow: 0 8px 30px rgba(255,107,157,.5);
+    transition: transform .15s, box-shadow .15s;
+    letter-spacing: 1px;
+  }
+
+  .big-btn:hover { transform: scale(1.06); box-shadow: 0 12px 40px rgba(255,107,157,.7); }
+  .big-btn:active { transform: scale(.97); }
+
+  .btn-secondary {
+    margin-top: 14px;
+    background: linear-gradient(135deg, #7effb2, #00bcd4);
+    box-shadow: 0 8px 30px rgba(126,255,178,.4);
+  }
+
+  /* ---- START SCREEN ---- */
+  #start-screen .game-title {
+    font-size: clamp(42px,10vw,88px);
+    background: linear-gradient(135deg, #ffd700, #ff6b9d, #7effb2, #80d8ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 4px 24px rgba(255,215,0,.4));
+    animation: titleFloat 3s ease-in-out infinite alternate;
+  }
+
+  @keyframes titleFloat {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-10px); }
+  }
+
+  .emoji-row { font-size: 40px; margin: 10px 0; animation: titleFloat 2s ease-in-out infinite alternate; }
+
+  .instructions {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    justify-content: center;
+    margin: 20px 0;
+  }
+
+  .instr-card {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 16px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .instr-card .icon { font-size: 28px; }
+  .instr-card .desc {
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,.75);
+    margin-top: 4px;
+  }
+
+  /* ---- LEVEL UP ---- */
+  #level-banner {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    z-index: 400;
+    font-size: clamp(32px,7vw,60px);
+    color: #ffd700;
+    text-shadow: 0 0 40px #ffd70088;
+    text-align: center;
+    pointer-events: none;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  #level-banner.show { transform: translate(-50%,-50%) scale(1); }
+
+  /* ---- COMBO ---- */
+  #combo-display {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 48px;
+    color: #ff6b9d;
+    text-shadow: 0 0 30px #ff6b9d88;
+    pointer-events: none;
+    z-index: 350;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 480px) {
+    .hud-value { font-size: 22px; }
+    .hud-label { font-size: 9px; }
+    #progress-wrap { top: 68px; }
+    #game { top: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars background -->
+<div id="stars"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-box">
+    <div class="hud-label">Score</div>
+    <div class="hud-value" id="score-val">0</div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Level</div>
+    <div class="hud-value" id="level-val">1</div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Lives</div>
+    <div class="hud-value" id="lives-val">❤️❤️❤️</div>
+  </div>
+  <div class="hud-box">
+    <div class="hud-label">Time</div>
+    <div class="hud-value" id="timer-val">60</div>
+  </div>
+</div>
+<div id="progress-wrap"><div id="progress-bar" style="width:0%"></div></div>
+
+<!-- Game canvas -->
+<div id="game"></div>
+
+<!-- Level banner -->
+<div id="level-banner">🎉 Level <span id="lvl-num">2</span>! 🎉</div>
+
+<!-- Combo display -->
+<div id="combo-display"></div>
+
+<!-- START SCREEN -->
+<div class="overlay" id="start-screen">
+  <div class="emoji-row">🫧🌈✨🫧</div>
+  <div class="game-title">Bubble Pop!</div>
+  <p>Pop the colorful bubbles before they escape! Avoid 💣 bombs!</p>
+  <div class="instructions">
+    <div class="instr-card"><div class="icon">🫧</div><div class="desc">Pop bubbles<br>+10 pts</div></div>
+    <div class="instr-card"><div class="icon">⭐</div><div class="desc">Golden star<br>+50 pts</div></div>
+    <div class="instr-card"><div class="icon">💣</div><div class="desc">Avoid bombs<br>lose life</div></div>
+    <div class="instr-card"><div class="icon">🔥</div><div class="desc">Combo chain<br>bonus points</div></div>
+  </div>
+  <button class="big-btn" onclick="startGame()">🚀 Play Now!</button>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div class="overlay" id="gameover-screen" style="display:none">
+  <div style="font-size:72px">😢</div>
+  <h1 style="color:#ff6b6b">Game Over!</h1>
+  <p>Final Score: <strong style="color:#ffd700;font-size:1.4em" id="final-score">0</strong></p>
+  <p id="final-msg"></p>
+  <button class="big-btn" onclick="startGame()">🔄 Play Again</button>
+</div>
+
+<!-- LEVEL COMPLETE SCREEN -->
+<div class="overlay" id="level-complete-screen" style="display:none">
+  <div style="font-size:72px" id="lc-emoji">🎉</div>
+  <h1 style="color:#7effb2" id="lc-title">Level Complete!</h1>
+  <p id="lc-msg"></p>
+  <button class="big-btn btn-secondary" onclick="nextLevel()">▶️ Next Level!</button>
+</div>
+
+<script>
+// ============================
+//  GAME ENGINE
+// ============================
+const LEVELS = [
+  { bubbles: 15, speed: 6,  spawnRate: 1400, bombChance: 0,   starChance: .05 },
+  { bubbles: 20, speed: 5,  spawnRate: 1200, bombChance: .05, starChance: .07 },
+  { bubbles: 25, speed: 4.5,spawnRate: 1000, bombChance: .1,  starChance: .08 },
+  { bubbles: 30, speed: 4,  spawnRate: 900,  bombChance: .12, starChance: .10 },
+  { bubbles: 35, speed: 3.5,spawnRate: 800,  bombChance: .14, starChance: .12 },
+  { bubbles: 40, speed: 3,  spawnRate: 700,  bombChance: .16, starChance: .14 },
+  { bubbles: 50, speed: 2.5,spawnRate: 600,  bombChance: .18, starChance: .15 },
+  { bubbles: 60, speed: 2,  spawnRate: 500,  bombChance: .2,  starChance: .18 },
+];
+
+const BUBBLE_COLORS = [
+  ['#ff6b9d','#ff8cc8'],['#ff8c42','#ffb347'],['#ffd700','#ffe55c'],
+  ['#7effb2','#b8ffd9'],['#80d8ff','#b3ecff'],['#d580ff','#e8b3ff'],
+  ['#ff5252','#ff8a80'],['#64ffda','#a7ffeb'],
+];
+
+const EMOJIS_NORMAL = ['🐱','🐶','🦊','🐸','🐙','🦋','🌸','🍭','🍦','🌈','⚡','🎈','🎀','🍩','🐠'];
+const EMOJIS_BOMB   = ['💣','💥'];
+
+let score=0, lives=3, level=0, popped=0, combo=0, comboTimer=null;
+let gameRunning=false, spawnTimer=null, countdownTimer=null, timeLeft=60;
+let activeBubbles=[];
+
+// ---- Stars ----
+function makeStars(){
+  const c=document.getElementById('stars');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const sz=Math.random()*2.5+.5;
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${(Math.random()*3+1).toFixed(1)}s;animation-delay:${(Math.random()*3).toFixed(1)}s`;
+    c.appendChild(s);
+  }
+}
+makeStars();
+
+// ---- Audio ----
+const ctx = new (window.AudioContext||window.webkitAudioContext)();
+
+function playPop(type='normal'){
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  if(type==='bomb'){
+    o.type='sawtooth'; o.frequency.setValueAtTime(80,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(20,ctx.currentTime+.3);
+    g.gain.setValueAtTime(.4,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.3);
+    o.start(); o.stop(ctx.currentTime+.3);
+  } else if(type==='star'){
+    o.type='sine';
+    [700,900,1100].forEach((f,i)=>{
+      const t=ctx.currentTime+i*.08;
+      o.frequency.setValueAtTime(f,t);
+    });
+    g.gain.setValueAtTime(.3,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);
+    o.start(); o.stop(ctx.currentTime+.4);
+  } else {
+    const freq=400+Math.random()*400;
+    o.type='sine'; o.frequency.setValueAtTime(freq,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(freq*1.5,ctx.currentTime+.15);
+    g.gain.setValueAtTime(.25,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.2);
+    o.start(); o.stop(ctx.currentTime+.2);
+  }
+}
+
+function playLevelUp(){
+  [523,659,784,1047].forEach((f,i)=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.type='sine';o.frequency.value=f;
+    const t=ctx.currentTime+i*.12;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.3,t+.06);
+    g.gain.linearRampToValueAtTime(0,t+.18);
+    o.start(t);o.stop(t+.18);
+  });
+}
+
+// ---- UI Helpers ----
+function updateHUD(){
+  document.getElementById('score-val').textContent=score;
+  document.getElementById('level-val').textContent=level+1;
+  const h='❤️'.repeat(lives)+'🖤'.repeat(Math.max(0,3-lives));
+  document.getElementById('lives-val').textContent=h;
+  document.getElementById('timer-val').textContent=timeLeft;
+}
+
+function updateProgress(){
+  const lvl=LEVELS[level];
+  const pct=Math.min(100,(popped/lvl.bubbles)*100);
+  document.getElementById('progress-bar').style.width=pct+'%';
+}
+
+// ---- Bubble Spawn ----
+function spawnBubble(){
+  if(!gameRunning) return;
+  const lvl=LEVELS[level];
+  const isBomb=Math.random()<lvl.bombChance;
+  const isStar=!isBomb&&Math.random()<lvl.starChance;
+
+  const size = isBomb?60:(isStar?65:(50+Math.random()*30));
+  const gameEl=document.getElementById('game');
+  const maxX=gameEl.clientWidth-size;
+  const x=Math.random()*maxX;
+  const sway=(Math.random()-0.5)*80;
+  const speed=lvl.speed+(Math.random()-.5)*1.5;
+
+  const el=document.createElement('div');
+  el.className='bubble';
+  el.style.cssText=`
+    width:${size}px;height:${size}px;
+    left:${x}px;bottom:-${size+10}px;
+    --speed:${speed}s;
+    --sway:${sway}px;
+    font-size:${size*.52}px;
+  `;
+
+  if(isBomb){
+    el.style.background='radial-gradient(circle at 35% 35%, #555, #111)';
+    el.style.boxShadow='0 4px 20px rgba(255,80,0,.5)';
+    el.textContent='💣';
+    el.dataset.type='bomb';
+  } else if(isStar){
+    el.style.background='radial-gradient(circle at 35% 35%, #fffde7, #ffc107)';
+    el.style.boxShadow='0 0 20px #ffd70099,0 4px 20px rgba(0,0,0,.3)';
+    el.textContent='⭐';
+    el.dataset.type='star';
+  } else {
+    const col=BUBBLE_COLORS[Math.floor(Math.random()*BUBBLE_COLORS.length)];
+    el.style.background=`radial-gradient(circle at 35% 35%, ${col[1]}, ${col[0]})`;
+    el.style.boxShadow=`0 0 15px ${col[0]}66,inset 0 0 12px rgba(255,255,255,.3),0 4px 12px rgba(0,0,0,.4)`;
+    el.textContent=EMOJIS_NORMAL[Math.floor(Math.random()*EMOJIS_NORMAL.length)];
+    el.dataset.type='normal';
+  }
+
+  // Shine highlight
+  const shine=document.createElement('div');
+  shine.style.cssText='position:absolute;top:12%;left:18%;width:28%;height:18%;background:rgba(255,255,255,.55);border-radius:50%;transform:rotate(-30deg);pointer-events:none;';
+  el.appendChild(shine);
+
+  el.addEventListener('pointerdown', e=>{ e.preventDefault(); popBubble(el); });
+
+  // Remove when animation ends (missed)
+  el.addEventListener('animationend',()=>{
+    if(el.parentNode){
+      el.parentNode.removeChild(el);
+      activeBubbles=activeBubbles.filter(b=>b!==el);
+      if(el.dataset.type!=='bomb'){
+        missedBubble();
+      }
+    }
+  });
+
+  gameEl.appendChild(el);
+  activeBubbles.push(el);
+}
+
+function missedBubble(){
+  // slight penalty - only lose combo
+  resetCombo();
+}
+
+// ---- Pop Logic ----
+function popBubble(el){
+  if(!gameRunning||!el.parentNode) return;
+  ctx.resume();
+  const type=el.dataset.type;
+  const rect=el.getBoundingClientRect();
+  const cx=rect.left+rect.width/2;
+  const cy=rect.top+rect.height/2;
+
+  // Remove bubble
+  el.style.animation='none';
+  el.parentNode.removeChild(el);
+  activeBubbles=activeBubbles.filter(b=>b!==el);
+
+  if(type==='bomb'){
+    playPop('bomb');
+    createBurst(cx,cy,'#ff4444',120);
+    document.getElementById('game').classList.add('shake');
+    setTimeout(()=>document.getElementById('game').classList.remove('shake'),400);
+    lives--;
+    if(lives<0) lives=0;
+    resetCombo();
+    updateHUD();
+    if(lives===0){ endGame(); return; }
+    return;
+  }
+
+  // Good pop
+  playPop(type);
+  combo++;
+  clearTimeout(comboTimer);
+  comboTimer=setTimeout(resetCombo, 1500);
+
+  let pts=type==='star'?50:10;
+  if(combo>3) pts*=2;
+  if(combo>6) pts*=3;
+  score+=pts;
+  popped++;
+
+  const col=type==='star'?'#ffd700':'rgba(255,255,255,.9)';
+  createBurst(cx,cy,col,type==='star'?100:70);
+  flyScore(cx,cy,`+${pts}${combo>3?'🔥':''}`);
+
+  if(combo>2) showCombo(combo);
+
+  updateHUD();
+  updateProgress();
+  checkLevelComplete();
+}
+
+function createBurst(x,y,color,size){
+  const b=document.createElement('div');
+  b.className='pop-burst';
+  b.style.cssText=`left:${x-size/2}px;top:${y-size/2}px;width:${size}px;height:${size}px;background:${color};`;
+  document.body.appendChild(b);
+  b.addEventListener('animationend',()=>b.remove());
+}
+
+function flyScore(x,y,txt){
+  const s=document.createElement('div');
+  s.className='score-fly';
+  s.textContent=txt;
+  s.style.cssText=`left:${x-30}px;top:${y-30}px;`;
+  document.body.appendChild(s);
+  s.addEventListener('animationend',()=>s.remove());
+}
+
+function showCombo(n){
+  const el=document.getElementById('combo-display');
+  el.textContent=`x${n} COMBO! 🔥`;
+  el.style.opacity='1';
+  el.style.transform=`translate(-50%,-50%) scale(${1+n*.05})`;
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{ el.style.opacity='0'; },800);
+}
+
+function resetCombo(){
+  combo=0;
+  const el=document.getElementById('combo-display');
+  el.style.opacity='0';
+}
+
+// ---- Countdown ----
+function startCountdown(){
+  timeLeft=60+level*10;
+  updateHUD();
+  countdownTimer=setInterval(()=>{
+    timeLeft--;
+    updateHUD();
+    if(timeLeft<=0){ clearInterval(countdownTimer); endGame(); }
+  },1000);
+}
+
+// ---- Level Check ----
+function checkLevelComplete(){
+  const lvl=LEVELS[level];
+  if(popped>=lvl.bubbles){
+    clearInterval(spawnTimer);
+    clearInterval(countdownTimer);
+    gameRunning=false;
+    // Remove remaining bubbles
+    activeBubbles.forEach(b=>b.parentNode&&b.parentNode.removeChild(b));
+    activeBubbles=[];
+    if(level>=LEVELS.length-1){
+      // Win!
+      winGame();
+    } else {
+      showLevelComplete();
+    }
+  }
+}
+
+function showLevelComplete(){
+  playLevelUp();
+  const emojis=['🎊','🌟','🚀','💫','🎯','🏆','🎮','🌈'];
+  document.getElementById('lc-emoji').textContent=emojis[level]||'🎉';
+  document.getElementById('lc-title').textContent=`Level ${level+1} Complete!`;
+  document.getElementById('lc-msg').textContent=`Score: ${score} pts • Combo Best: ${combo} • Ready for Level ${level+2}?`;
+  document.getElementById('level-complete-screen').style.display='flex';
+}
+
+function nextLevel(){
+  document.getElementById('level-complete-screen').style.display='none';
+  level++;
+  popped=0;
+  updateProgress();
+  showLevelBanner();
+  startLevel();
+}
+
+function showLevelBanner(){
+  const b=document.getElementById('level-banner');
+  document.getElementById('lvl-num').textContent=level+1;
+  b.classList.add('show');
+  setTimeout(()=>b.classList.remove('show'),2000);
+}
+
+// ---- Start / End ----
+function startLevel(){
+  gameRunning=true;
+  const lvl=LEVELS[level];
+  spawnTimer=setInterval(spawnBubble, lvl.spawnRate);
+  startCountdown();
+}
+
+function startGame(){
+  // Reset
+  score=0; lives=3; level=0; popped=0; combo=0; timeLeft=60;
+  activeBubbles.forEach(b=>b.parentNode&&b.parentNode.removeChild(b));
+  activeBubbles=[];
+  clearInterval(spawnTimer); clearInterval(countdownTimer);
+
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('gameover-screen').style.display='none';
+  document.getElementById('level-complete-screen').style.display='none';
+
+  updateHUD(); updateProgress();
+  showLevelBanner();
+  setTimeout(startLevel, 800);
+}
+
+function endGame(){
+  gameRunning=false;
+  clearInterval(spawnTimer); clearInterval(countdownTimer);
+  activeBubbles.forEach(b=>b.parentNode&&b.parentNode.removeChild(b));
+  activeBubbles=[];
+
+  document.getElementById('final-score').textContent=score;
+  const msgs=[
+    [0,'Keep practicing! 💪'],
+    [100,'Nice start! 🌱'],
+    [300,'Getting good! 🎯'],
+    [600,'Awesome player! ⭐'],
+    [1000,'Bubble Master! 🏆'],
+    [2000,'LEGENDARY! 👑'],
+  ];
+  const msg=msgs.filter(m=>score>=m[0]).pop()[1];
+  document.getElementById('final-msg').textContent=msg;
+  document.getElementById('gameover-screen').style.display='flex';
+}
+
+function winGame(){
+  document.getElementById('lc-emoji').textContent='👑';
+  document.getElementById('lc-title').textContent='You WON! Champion!';
+  document.getElementById('lc-msg').textContent=`Amazing! Final Score: ${score} pts. You beat all levels!`;
+  document.getElementById('level-complete-screen').style.display='flex';
+  const btn=document.querySelector('#level-complete-screen .big-btn');
+  btn.textContent='🔄 Play Again!';
+  btn.onclick=startGame;
+}
+
+// Resume audio on first interaction
+document.addEventListener('pointerdown',()=>ctx.resume(),{once:true});
+</script>
+</body>
+</html>
