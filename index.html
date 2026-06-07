@@ -2,6 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="application-name" content="Bubble Pop Adventure">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Bubble Pop">
+<meta name="description" content="Fun bubble popping game for kids!">
+<meta name="theme-color" content="#0a0a2e">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>🫧 Bubble Pop Adventure!</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
@@ -720,5 +729,24 @@ function winGame(){
 // Resume audio on first interaction
 document.addEventListener('pointerdown',()=>ctx.resume(),{once:true});
 </script>
+
+<script>
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'bubble-pop-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const blob = new Blob([swCode], {type: 'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+</script>
+
 </body>
 </html>
